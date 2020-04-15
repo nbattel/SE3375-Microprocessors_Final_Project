@@ -78,21 +78,168 @@
 #define ICDICER               0x180         // offset to interrupt clear-enable regs
 #define ICDIPTR               0x800         // offset to interrupt processor targets regs
 #define ICDICFR               0xC00         // offset to interrupt configuration regs
+
+volatile int* buttons = (int*)KEY_BASE;
+volatile int* timer_ptr = (int*)TIMER_BASE;//OxFF202000
+volatile unsigned int *ADC_ptr = (unsigned int *)ADC_BASE; //ADC Address
+volatile unsigned int *SW_ptr = (unsigned int *)SW_BASE;   //Switch Address
+volatile unsigned int ADC_val; //Stores the value we read from the ADC channel
+const unsigned int lookupTable[10] = {0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7F, 0x67}; 
+int ms1, ms2, s1, s2, m1, m2 = 0;
+int ones = 0;
+int tens = 5;
+int hundreds = 1;
+int incline, weight, jogging = 0;
+float walkingSpeed = 1.4; //This is the average human walking speed from google research in m/s
+float runningSpped = 5.16; //This is the average human jogging speed from google research in m/s
+
+void config_timer()
+{
+	//status set to 0
+	*(timer_ptr + 0) = 0x0; //its not counting to start so set it to 0
 	
-volatile unsigned int *GPIO_accelerometer = (unsigned int *)HPS_GPIO2_BASE; //Accelerometer
-volatile unsigned int *FPGA_Bridge = (unsigned int *)FPGA_BRIDGE;//FPGA_Bridge
+	// set timer period 
+	int counter = 1000000;
+
+	/* set the interval timer period for scrolling the HEX displays */
+	*(timer_ptr + 2) = (counter & 0xFFFF); //register 0xFF202008
+	*(timer_ptr + 3) = (counter >> 16) & 0xFFFF;
+	*(timer_ptr + 1) = 0x0110; //could also put 0x6
+
+}
+
+void update_timer(int deca_minutes, int minutes, int deca_seconds, int seconds, int deci_seconds, int centi_seconds) {
+	*((char*)HEX3_HEX0_BASE) = lookupTable[centi_seconds]; //correspons to the 6 7seg displays
+	*((char*)HEX3_HEX0_BASE + 1) = lookupTable[deci_seconds];
+	*((char*)HEX3_HEX0_BASE + 2) = lookupTable[seconds];
+	*((char*)HEX3_HEX0_BASE + 3) = lookupTable[deca_seconds];
+	*((char*)HEX5_HEX4_BASE) = lookupTable[minutes];
+	*((char*)HEX5_HEX4_BASE + 1) = lookupTable[deca_minutes];
+}
+
+void update_weight(int ones_column, int tens_column, int hundreds_column){
+	*((char*)HEX3_HEX0_BASE) = lookupTable[ones_column]; //correspons to the 6 7seg displays
+	*((char*)HEX3_HEX0_BASE + 1) = lookupTable[tens_column];
+	*((char*)HEX3_HEX0_BASE + 2) = lookupTable[hundreds_column];
+	*((char*)HEX3_HEX0_BASE + 3) = lookupTable[0];
+	*((char*)HEX5_HEX4_BASE) = lookupTable[0];
+	*((char*)HEX5_HEX4_BASE + 1) = lookupTable[0];
+}
+
+//Calculating the calories here
+void calculateCaloriesBurned(int speed, int time, int weight){
+	
+}
 	
 int main(void) {
-	/*To use the memory-mapped peripherals in the FPGA, 
-	* software running on the ARM A9 must enable the HPS-to-FPGA and 
-	* lightweight HPS-to-FPGA bridges by setting bits #0 and #1 of the 
-	* Bridge reset register to 0
-	*/
-    *FPGA_Bridge &= 0xC
-	
-	
-    while (1) 
-	{
+	config_timer();
+	while(1){
+		//While switch 0 is on, the sevent segeent display will show a timer
+		//Else if it is off it will show the users weight in lbs 
+		if(*SW_ptr & 0x1){
+			//Writing to the ADC channels to update it
+			//*(ADC_ptr) = 0x1;
+			//*(ADC_ptr + 1) = 0x1;
+			//If switch 1 is on then they are jogging, else they are walking
+			if(*SW_ptr & 0x2){
+				//If switch 2 is active then they are walking or running at a 10 degree incline
+				if(*SW_ptr & 0x4){
+					incline = 10;
+				}
+				//If switch 3 is active then they are walking or running at a 20 degree incline
+				else if(*SW_ptr & 0x8){
+					incline = 20;
+				}
+				//If switch 4 is active then they are walking or running at a 30 degree incline
+				else if(*SW_ptr & 0x10){
+					incline = 30;
+				}
+				//If neither switch 1, 2, or 3 are active then they are walking or running at a 0 degree incline
+				else{
 
-    }
+				}
+			}
+			
+			//If button 0 is rpessed then start the timer
+			if (*buttons & 0b1){
+				jogging = 1;
+			}
+			//while jogging increase the numbers
+			if(jogging){
+				while (*(timer_ptr) == 0b10) { ; }
+				ms1++;
+
+				if (ms1 == 10) { ms1 = 0; ms2 += 1; }
+				if (ms2 == 10) { ms2 = 0; s1 += 1; }
+				if (s1 == 10) { s1 = 0; s2 += 1; }
+				if (s2 == 6) { s2 = 0; m1 += 1; }
+				if (m1 == 10) { m1 = 0; m2 += 1; }
+
+				update_timer(m2, m1, s2, s1, ms2, ms1); //increase numbers by updating timer
+				config_timer();
+
+				//If button 1 is pressed then stop the timer 
+				if (*buttons & 0b10){ 
+					jogging = 0; 
+				}
+
+				//If button 2 is pressed then reset the timer
+				if (*buttons & 0b100) {
+					jogging = 0;
+					ms1 = 0;
+					ms2 = 0;
+					s1 = 0;
+					s2 = 0;
+					m1 = 0;
+					m2 = 0;
+
+					update_timer(m2, m1, s2, s1, ms2, ms1);
+					config_timer();
+				}
+			}
+			//If button 2 is pressed then reset the timer
+			if (*buttons & 0b100) {
+				jogging = 0;
+				ms1 = 0;
+				ms2 = 0;
+				s1 = 0;
+				s2 = 0;
+				m1 = 0;
+				m2 = 0;
+
+				update_timer(m2, m1, s2, s1, ms2, ms1);
+				config_timer();
+			}
+		}
+
+		//While switch 0 is off the sevent segeent display will show the users weight in lbs
+		jogging = 0;
+		//Pressing button 3 will increment their weight
+		if (*buttons & 0b1000){
+			ones++;
+
+			if (ones == 10){
+				ones = 0; 
+				tens++; 
+			}
+			if (tens == 10) {
+				tens = 0; 
+				hundreds++; 
+			}
+		}
+		//Pressing button 4 will decrement their weight
+		if (*buttons & 0b10000){
+			ones--;
+
+			if (ones == -1){
+				ones = 9; 
+				tens--; 
+			}
+			if (tens == -1) {
+				tens = 9; 
+				hundreds--; 
+			}
+		}
+		update_weight(ones, tens, hundreds);
+	}
 }
