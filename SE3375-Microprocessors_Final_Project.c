@@ -88,7 +88,7 @@ const unsigned int lookupTable[10] = {0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 
 int ms1, ms2, s1, s2, m1, m2 = 0;
 int ones = 0;
 int tens = 5;
-int hundreds = 1;
+int addWeight, hundreds = 1;
 int incline, weight, jogging = 0;
 float walkingSpeed = 1.4; //This is the average human walking speed from google research in m/s
 float runningSpped = 5.16; //This is the average human jogging speed from google research in m/s
@@ -137,7 +137,7 @@ int main(void) {
 	while(1){
 		//While switch 0 is on, the sevent segeent display will show a timer
 		//Else if it is off it will show the users weight in lbs 
-		if(*SW_ptr & 0x1){
+		while(*SW_ptr & 0x1){
 			//Writing to the ADC channels to update it
 			//*(ADC_ptr) = 0x1;
 			//*(ADC_ptr + 1) = 0x1;
@@ -212,36 +212,46 @@ int main(void) {
 				config_timer();
 			}
 		}
+		
+		while(!(*SW_ptr & 0x1)){
+			//While switch 0 is off the sevent segeent display will show the users weight in lbs
+			jogging = 0;
+			//Pressing button 3 will increment their weight
+			//Pressing button 4 will decrement their weight
+			if ((*buttons == 0b1000) && addWeight){
+				ones++;
 
-		//While switch 0 is off the sevent segeent display will show the users weight in lbs
-		jogging = 0;
-		//Pressing button 3 will increment their weight
-		if (*buttons == 0b1000){
-			ones++;
+				if (ones == 10){
+					ones = 0; 
+					tens++; 
+				}
+				if (tens == 10) {
+					tens = 0; 
+					hundreds++; 
+				}
+				update_weight(ones, tens, hundreds);
+				//Setting addWeight boolean to zero helps with the simulation by having the user
+				//click the button off before adding again
+				addWeight = 0;
+			}else if ((*buttons == 0x10000) && addWeight){
+				ones--;
 
-			if (ones == 10){
-				ones = 0; 
-				tens++; 
+				if (ones == -1){
+					ones = 9; 
+					tens--; 
+				}
+				if (tens == -1) {
+					tens = 9; 
+					hundreds--; 
+				}
+				update_weight(ones, tens, hundreds);
+				addWeight = 0;
 			}
-			if (tens == 10) {
-				tens = 0; 
-				hundreds++; 
+			else{
+				addWeight = 1;
 			}
-			update_weight(ones, tens, hundreds);
-		}
-		//Pressing button 4 will decrement their weight
-		if (0){
-			ones--;
-
-			if (ones == -1){
-				ones = 9; 
-				tens--; 
-			}
-			if (tens == -1) {
-				tens = 9; 
-				hundreds--; 
-			}
-			update_weight(ones, tens, hundreds);
-		}
+			
+			weight = (hundreds * 100) + (tens * 10) + (ones);
+		}		
 	}
 }
