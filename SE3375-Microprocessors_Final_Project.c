@@ -99,7 +99,7 @@ void config_timer()
 	*(timer_ptr + 0) = 0x0; //its not counting to start so set it to 0
 	
 	// set timer period 
-	int counter = 1000000;
+	int counter = 100000;
 
 	/* set the interval timer period for scrolling the HEX displays */
 	*(timer_ptr + 2) = (counter & 0xFFFF); //register 0xFF202008
@@ -133,6 +133,7 @@ void calculateCaloriesBurned(int speed, int time, int weight){
 	
 int main(void) {
 	config_timer();
+	update_weight(ones, tens, hundreds);
 	while(1){
 		//While switch 0 is on, the sevent segeent display will show a timer
 		//Else if it is off it will show the users weight in lbs 
@@ -141,13 +142,13 @@ int main(void) {
 			//*(ADC_ptr) = 0x1;
 			//*(ADC_ptr + 1) = 0x1;
 			//If switch 1 is on then they are jogging, else they are walking
-			if(*SW_ptr & 0x2){
+			if(*SW_ptr & 0x10){
 				//If switch 2 is active then they are walking or running at a 10 degree incline
-				if(*SW_ptr & 0x4){
+				if(*SW_ptr & 0x100){
 					incline = 10;
 				}
 				//If switch 3 is active then they are walking or running at a 20 degree incline
-				else if(*SW_ptr & 0x8){
+				else if(*SW_ptr & 0x1000){
 					incline = 20;
 				}
 				//If switch 4 is active then they are walking or running at a 30 degree incline
@@ -160,8 +161,8 @@ int main(void) {
 				}
 			}
 			
-			//If button 0 is rpessed then start the timer
-			if (*buttons & 0b1){
+			//If button 0 is pressed then start the timer
+			if (*buttons == 0b0001){
 				jogging = 1;
 			}
 			//while jogging increase the numbers
@@ -179,12 +180,12 @@ int main(void) {
 				config_timer();
 
 				//If button 1 is pressed then stop the timer 
-				if (*buttons & 0b10){ 
+				if (*buttons == 0b0010){ 
 					jogging = 0; 
 				}
 
 				//If button 2 is pressed then reset the timer
-				if (*buttons & 0b100) {
+				if (*buttons == 0b0100) {
 					jogging = 0;
 					ms1 = 0;
 					ms2 = 0;
@@ -198,7 +199,7 @@ int main(void) {
 				}
 			}
 			//If button 2 is pressed then reset the timer
-			if (*buttons & 0b100) {
+			if (*buttons == 0b0100) {
 				jogging = 0;
 				ms1 = 0;
 				ms2 = 0;
@@ -215,7 +216,7 @@ int main(void) {
 		//While switch 0 is off the sevent segeent display will show the users weight in lbs
 		jogging = 0;
 		//Pressing button 3 will increment their weight
-		if (*buttons & 0b1000){
+		if (*buttons == 0b1000){
 			ones++;
 
 			if (ones == 10){
@@ -226,9 +227,10 @@ int main(void) {
 				tens = 0; 
 				hundreds++; 
 			}
+			update_weight(ones, tens, hundreds);
 		}
 		//Pressing button 4 will decrement their weight
-		if (*buttons & 0b10000){
+		if (0){
 			ones--;
 
 			if (ones == -1){
@@ -239,7 +241,7 @@ int main(void) {
 				tens = 9; 
 				hundreds--; 
 			}
+			update_weight(ones, tens, hundreds);
 		}
-		update_weight(ones, tens, hundreds);
 	}
 }
