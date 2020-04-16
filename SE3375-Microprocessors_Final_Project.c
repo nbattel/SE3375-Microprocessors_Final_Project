@@ -218,7 +218,7 @@ int main(void) {
 			jogging = 0;
 			//Pressing button 3 will increment their weight
 			//Pressing button 4 will decrement their weight
-			if ((*buttons == 0b1000) && addWeight){
+			if ((*buttons == 0b0001) && addWeight){
 				ones++;
 
 				if (ones == 10){
@@ -233,7 +233,7 @@ int main(void) {
 				//Setting addWeight boolean to zero helps with the simulation by having the user
 				//click the button off before adding again
 				addWeight = 0;
-			}else if ((*buttons == 0x10000) && addWeight){
+			}else if ((*buttons == 0b0010) && addWeight){
 				ones--;
 
 				if (ones == -1){
@@ -247,7 +247,7 @@ int main(void) {
 				update_weight(ones, tens, hundreds);
 				addWeight = 0;
 			}
-			else{
+			else if(!(*buttons == 0b0001) && !(*buttons == 0b0010)){
 				addWeight = 1;
 			}
 			
