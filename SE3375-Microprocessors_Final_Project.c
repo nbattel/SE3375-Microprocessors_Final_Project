@@ -85,19 +85,19 @@ volatile int *SW_ptr = (int *)SW_BASE;   //Switch Address
 const unsigned int lookupTable[10] = {0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7F, 0x67};
 const double MetFactor3mphInclination[4] = {3.3, 3.7, 4.1, 4.5}; //Found at https://www.pulmonarywellness.com/book/8-treadmill-101/
 const double MetFactor8mphInclination[4] = {8.3, 8.7, 9.1, 9.5}; //Estimated based off chart from link above
-int ms1, ms2, s1, s2, m1, m2, h1 = 0;
-int currentSpeed, ones, incline, jogging, displayCal, addWeight = 0;
+int ms1, ms2, s1, s2, m1, m2, h1, h2 = 0;
+int currentSpeed, ones, incline, jogging, displayCal, displaySteps, addWeight = 0;
 int tens = 8;
 int hundreds = 1;
 int weight = 180;
 double currentMET;
-int walkingSpeed = 3; //This is the average human walking speed from google research in mph
+int currentSpeed, walkingSpeed = 3; //This is the average human walking speed from google research in mph
 int joggingSpeed = 8; //This is the average human jogging speed from google research in mph
 
 void config_timer()
 {
 	//status set to 0
-	*(timer_ptr + 0) = 0x0; //its not counting to start so set it to 0
+	*(timer_ptr) = 0b00; //its not counting to start so set it to 0
 	
 	// set timer period 
 	int counter = 1000000;
@@ -105,24 +105,31 @@ void config_timer()
 	/* set the interval timer period for scrolling the HEX displays */
 	*(timer_ptr + 2) = (counter & 0xFFFF); //register 0xFF202008
 	*(timer_ptr + 3) = (counter >> 16) & 0xFFFF;
-	*(timer_ptr + 1) = 0x0110; //could also put 0x6
+	*(timer_ptr + 1) = 0b0110; //could also put 0x6
 
 }
 
-double calculateCurrentTimeInMIN(int hours, int deca_minutes, int minutes, int deca_seconds, int seconds){
-	double tempHours = hours * 60; //putting hours into minutes
+double calculateCurrentTimeInMIN(int deca_hours, int hours, int deca_minutes, int minutes, int deca_seconds, int seconds){
+	double tempHours = ((deca_hours * 10) + hours) * 60; //putting hours into minutes
 	double tempMinutes = (deca_minutes * 10) + minutes; //combining both minue values
 	double tempSeconds = ((deca_seconds * 10) + seconds) / 60; //putting seconds into minutes
 	return (tempHours + tempMinutes + tempSeconds);
 }
 
-void update_timer(int hours, int deca_minutes, int minutes, int deca_seconds, int seconds, int deci_seconds, int centi_seconds) {
-	*((char*)HEX3_HEX0_BASE) = lookupTable[deci_seconds]; //correspons to the 6 7seg displays
-	*((char*)HEX3_HEX0_BASE + 1) = lookupTable[seconds];
-	*((char*)HEX3_HEX0_BASE + 2) = lookupTable[deca_seconds];
-	*((char*)HEX3_HEX0_BASE + 3) = lookupTable[minutes];
-	*((char*)HEX5_HEX4_BASE) = lookupTable[deca_minutes];
-	*((char*)HEX5_HEX4_BASE + 1) = lookupTable[hours];
+double calculateCurrentTimeInHOUR(int deca_hours, int hours, int deca_minutes, int minutes, int deca_seconds, int seconds){
+	double tempHours = (deca_hours * 10) + hours;
+	double tempMinutes = ((deca_minutes * 10) + minutes) / 60; //putting minutes into hours
+	double tempSeconds = ((deca_seconds * 10) + seconds) / 3600; //putting seconds into hours
+	return (tempHours + tempMinutes + tempSeconds);
+}
+
+void update_timer(int deca_hours, int hours, int deca_minutes, int minutes, int deca_seconds, int seconds, int deci_seconds, int centi_seconds) {
+	*((char*)HEX3_HEX0_BASE) = lookupTable[seconds]; //correspons to the 6 7seg displays
+	*((char*)HEX3_HEX0_BASE + 1) = lookupTable[deca_seconds];
+	*((char*)HEX3_HEX0_BASE + 2) = lookupTable[minutes];
+	*((char*)HEX3_HEX0_BASE + 3) = lookupTable[deca_minutes];
+	*((char*)HEX5_HEX4_BASE) = lookupTable[hours];
+	*((char*)HEX5_HEX4_BASE + 1) = lookupTable[deca_hours];
 }
 
 void update_weight(int ones_column, int tens_column, int hundreds_column){
@@ -158,13 +165,38 @@ void displayCalories(int totalCalories){
 		i++;
 	}
 }
+
+double calculateStepCount(int speed, double time){
+	/*Assuming 1 mile is about 2112 steps if a stride length is 0.762 meters we can 
+	* estimate the steps a user has taken based on the speed and time (already in hours) they've run.
+	* time must be in hours since speed is in miles per hour
+	* Multiplying mph x hours will give us miles (distance).*/
+	double distance;
+	distance = (double) speed * time;
+	return (distance * 2112);
+}
+
+void displayStepCount(int totalStepCount){
+	int i = 0;
+	*((char*)HEX3_HEX0_BASE) = lookupTable[0]; //correspons to the 6 7seg displays
+	*((char*)HEX3_HEX0_BASE + 1) = lookupTable[0];
+	*((char*)HEX3_HEX0_BASE + 2) = lookupTable[0];
+	*((char*)HEX3_HEX0_BASE + 3) = lookupTable[0];
+	*((char*)HEX5_HEX4_BASE) = lookupTable[0];
+	*((char*)HEX5_HEX4_BASE + 1) = lookupTable[0];
+	while(totalStepCount > 0){
+		int digit = totalStepCount % 10;
+		*((char*)HEX3_HEX0_BASE + i) = lookupTable[digit];
+		totalStepCount /= 10;
+		i++;
+	}
+}
 	
 int main(void) {
 	config_timer();
-	
-	while(1){
+	while(1){	
 		//While switch 0 is on, the sevent segeent display will show a timer
-		while(*SW_ptr == 0b1){
+		while(*SW_ptr & 0b1){
 			//If switch 1 is on then they are jogging, else they are walking
 			if(*SW_ptr == 0b11){
 				currentSpeed = joggingSpeed;
@@ -204,8 +236,9 @@ int main(void) {
 				if (s2 == 6) {s2 = 0; m1 += 1;}
 				if (m1 == 10) { m1 = 0; m2 += 1;}
 				if (m2 == 6) {m2 = 0; h1 += 1;}
+				if (h1 == 10) {h1 = 0; h2 += 1;}
 
-				update_timer(h1, m2, m1, s2, s1, ms2, ms1); //increase numbers by updating timer
+				update_timer(h2, h1, m2, m1, s2, s1, ms2, ms1); //increase numbers by updating timer
 				config_timer();
 
 				//If button 1 is pressed then stop the timer 
@@ -223,8 +256,9 @@ int main(void) {
 					m1 = 0;
 					m2 = 0;
 					h1 = 0;
+					h2 = 0;
 
-					update_timer(h1, m2, m1, s2, s1, ms2, ms1);
+					update_timer(h2, h1, m2, m1, s2, s1, ms2, ms1);
 					config_timer();
 				}
 			}
@@ -238,8 +272,9 @@ int main(void) {
 				m1 = 0;
 				m2 = 0;
 				h1 = 0;
+				h2 = 0;
 
-				update_timer(h1, m2, m1, s2, s1, ms2, ms1);
+				update_timer(h2, h1, m2, m1, s2, s1, ms2, ms1);
 				config_timer();
 			}
 		}
@@ -298,7 +333,7 @@ int main(void) {
 				currentMET = MetFactor8mphInclination[incline];
 			}
 			//calculate the current time in minutes
-			double currentTime = calculateCurrentTimeInMIN(h1, m2, m1, s2, s1);
+			double currentTime = calculateCurrentTimeInMIN(h2, h1, m2, m1, s2, s1);
 			
 			//Calculate the total calories burned and round to the nearest integer
 			double totalCalories = calculateCaloriesBurned(currentTime, weight, currentMET);
@@ -306,6 +341,19 @@ int main(void) {
 			if(displayCal){
 				displayCalories((int)totalCalories);
 				displayCal = 0;
+			}
+		}
+		
+		displaySteps = 1;
+		//While switch 3 is on is on we will display the steps taken
+		while(*SW_ptr == 0b1000){
+			//calculate the current time in minutes
+			double currentTime = calculateCurrentTimeInHOUR(h2, h1, m2, m1, s2, s1);
+			double totalStepCount = calculateStepCount(currentSpeed, currentTime);
+			//Displaying the step count
+			if(displaySteps){
+				displayStepCount((int)totalStepCount);
+				displaySteps = 0;
 			}
 		}
 	}
