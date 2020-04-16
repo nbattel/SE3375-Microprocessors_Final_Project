@@ -81,7 +81,7 @@
 
 volatile int* buttons = (int*)KEY_BASE;
 volatile int* timer_ptr = (int*)TIMER_BASE;//OxFF202000
-volatile unsigned int *SW_ptr = (unsigned int *)SW_BASE;   //Switch Address
+volatile int *SW_ptr = (int *)SW_BASE;   //Switch Address
 const unsigned int lookupTable[10] = {0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7F, 0x67};
 const double MetFactor3mphInclination[4] = {3.3, 3.7, 4.1, 4.5}; //Found at https://www.pulmonarywellness.com/book/8-treadmill-101/
 const double MetFactor8mphInclination[4] = {8.3, 8.7, 9.1, 9.5}; //Estimated based off chart from link above
@@ -150,21 +150,22 @@ void displayCalories(int totalCalories){
 	*((char*)HEX3_HEX0_BASE + 3) = lookupTable[0];
 	*((char*)HEX5_HEX4_BASE) = lookupTable[0];
 	*((char*)HEX5_HEX4_BASE + 1) = lookupTable[0];
-	/*while(totalCalories > 0){
+	while(totalCalories > 0){
 		int digit = totalCalories % 10;
 		*((char*)HEX3_HEX0_BASE + i) = lookupTable[digit];
 		totalCalories /= 10;
 		i++;
-	}*/
+	}
 }
 	
 int main(void) {
+	config_timer();
+	
 	while(1){
-		config_timer();
 		//While switch 0 is on, the sevent segeent display will show a timer
-		while(*SW_ptr & 0x1){
+		while(*SW_ptr == 0b1){
 			//If switch 1 is on then they are jogging, else they are walking
-			if(*SW_ptr & 0x10){
+			if(*SW_ptr == 0b11){
 				currentSpeed = joggingSpeed;
 			}
 			else{
@@ -174,11 +175,14 @@ int main(void) {
 			//ElseIf switch 3 is active then they are walking or running at a 20% incline
 			//ElseIf switch 4 is active then they are walking or running at a 30% incline
 			//Else, if neither switch 2, 3, or 4 are active then they are walking or running at a 0% incline (no incline)
-			if(*SW_ptr & 0x100){
+			if(*SW_ptr == 0b101){
 				incline = 1;
 			}
-			else if(*SW_ptr & 0x1000){
+			else if(*SW_ptr == 0b1001){
 				incline = 2;
+			}
+			else if(*SW_ptr & 0b10001){
+				incline = 3;
 			}
 			else{
 				incline = 0;
@@ -239,8 +243,8 @@ int main(void) {
 			}
 		}
 		
-		//While switch 5 is on the seven segment display will show the users weight in lbs
-		while(*SW_ptr & 0x10){
+		//While switch 1 is on the seven segment display will show the users weight in lbs
+		while(*SW_ptr == 0b10){
 			update_weight(ones, tens, hundreds);
 			//Setting jogging variable to 0
 			jogging = 0;
@@ -284,8 +288,8 @@ int main(void) {
 			weight = (hundreds * 100) + (tens * 10) + (ones);
 		}
 		
-		//While switch 6 is on is on we will display the calories burned
-		while(*SW_ptr & 0x100){
+		//While switch 2 is on is on we will display the calories burned
+		while(*SW_ptr == 0b100){
 			//Calculating the current MET
 			displayCalories(215);
 			if(currentSpeed == walkingSpeed){
@@ -294,10 +298,10 @@ int main(void) {
 				currentMET = MetFactor8mphInclination[incline];
 			}
 			//calculate the current time in minutes
-			//double currentTime = calculateCurrentTimeInMIN(h1, m2, m1, s2, s1);
+			double currentTime = calculateCurrentTimeInMIN(h1, m2, m1, s2, s1);
 			
 			//Calculate the total calories burned and round to the nearest integer
-			//int totalCalories = (int)(calculateCaloriesBurned(currentTime, weight, currentMET));
+			int totalCalories = (int)(calculateCaloriesBurned(currentTime, weight, currentMET));
 			//Display the total calories burned
 			displayCalories(215);
 		}
