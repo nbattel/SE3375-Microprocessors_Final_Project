@@ -86,9 +86,10 @@ const unsigned int lookupTable[10] = {0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 
 const double MetFactor3mphInclination[4] = {3.3, 3.7, 4.1, 4.5}; //Found at https://www.pulmonarywellness.com/book/8-treadmill-101/
 const double MetFactor8mphInclination[4] = {8.3, 8.7, 9.1, 9.5}; //Estimated based off chart from link above
 int ms1, ms2, s1, s2, m1, m2, h1 = 0;
-int currentSpeed, ones, incline, weight, jogging, addWeight = 0;
+int currentSpeed, ones, incline, jogging, displayCal, addWeight = 0;
 int tens = 8;
 int hundreds = 1;
+int weight = 180;
 double currentMET;
 int walkingSpeed = 3; //This is the average human walking speed from google research in mph
 int joggingSpeed = 8; //This is the average human jogging speed from google research in mph
@@ -287,11 +288,10 @@ int main(void) {
 			
 			weight = (hundreds * 100) + (tens * 10) + (ones);
 		}
-		
+		displayCal = 1;
 		//While switch 2 is on is on we will display the calories burned
 		while(*SW_ptr == 0b100){
 			//Calculating the current MET
-			displayCalories(215);
 			if(currentSpeed == walkingSpeed){
 				currentMET = MetFactor3mphInclination[incline];
 			}else{
@@ -301,9 +301,12 @@ int main(void) {
 			double currentTime = calculateCurrentTimeInMIN(h1, m2, m1, s2, s1);
 			
 			//Calculate the total calories burned and round to the nearest integer
-			int totalCalories = (int)(calculateCaloriesBurned(currentTime, weight, currentMET));
+			double totalCalories = calculateCaloriesBurned(currentTime, weight, currentMET);
 			//Display the total calories burned
-			displayCalories(215);
+			if(displayCal){
+				displayCalories((int)totalCalories);
+				displayCal = 0;
+			}
 		}
 	}
 }
