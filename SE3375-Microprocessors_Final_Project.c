@@ -145,9 +145,9 @@ void update_weight(int ones_column, int tens_column, int hundreds_column){
 }
 
 //Calculating the calories here
-double calculateCaloriesBurned(double time, int currentWeight, int MET){
+double calculateCaloriesBurned(double time, int currentWeight, double MET){
 	double kgWeight = currentWeight / 2.205; //conversion from lbs to kg
-	int totalCaloriesPerMinute = (MET * 3.5 * kgWeight)/200;
+	double totalCaloriesPerMinute = (MET * 3.5 * kgWeight)/200;
 	//Time is in minutes
 	return (time * totalCaloriesPerMinute);
 }
