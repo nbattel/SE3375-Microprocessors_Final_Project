@@ -93,6 +93,7 @@ int weight = 180;
 double currentMET;
 int currentSpeed, walkingSpeed = 3; //This is the average human walking speed from google research in mph
 int joggingSpeed = 8; //This is the average human jogging speed from google research in mph
+double strideLength = 2.5; //This is the average stride length of a human from goolge research in feet
 
 void config_timer()
 {
@@ -110,16 +111,18 @@ void config_timer()
 }
 
 double calculateCurrentTimeInMIN(int deca_hours, int hours, int deca_minutes, int minutes, int deca_seconds, int seconds){
-	double tempHours = ((deca_hours * 10) + hours) * 60; //putting hours into minutes
-	double tempMinutes = (deca_minutes * 10) + minutes; //combining both minue values
-	double tempSeconds = ((deca_seconds * 10) + seconds) / 60; //putting seconds into minutes
+	double tempHours, tempMinutes, tempSeconds;
+	tempHours = (double) ((deca_hours * 10) + hours) * 60; //putting hours into minutes
+	tempMinutes = (double) (deca_minutes * 10) + minutes; //combining both minue values
+	tempSeconds = (double) ((deca_seconds * 10) + seconds) / 60; //putting seconds into minutes
 	return (tempHours + tempMinutes + tempSeconds);
 }
 
 double calculateCurrentTimeInHOUR(int deca_hours, int hours, int deca_minutes, int minutes, int deca_seconds, int seconds){
-	double tempHours = (deca_hours * 10) + hours;
-	double tempMinutes = ((deca_minutes * 10) + minutes) / 60; //putting minutes into hours
-	double tempSeconds = ((deca_seconds * 10) + seconds) / 3600; //putting seconds into hours
+	double tempHours, tempMinutes, tempSeconds;
+	tempHours = (double) (deca_hours * 10) + hours;
+	tempMinutes = (double) ((deca_minutes * 10) + minutes) / 60; //putting minutes into hours
+	tempSeconds = (double) ((deca_seconds * 10) + seconds) / 3600; //putting seconds into hours
 	return (tempHours + tempMinutes + tempSeconds);
 }
 
@@ -167,13 +170,14 @@ void displayCalories(int totalCalories){
 }
 
 double calculateStepCount(int speed, double time){
-	/*Assuming 1 mile is about 2112 steps if a stride length is 0.762 meters we can 
-	* estimate the steps a user has taken based on the speed and time (already in hours) they've run.
-	* time must be in hours since speed is in miles per hour
-	* Multiplying mph x hours will give us miles (distance).*/
+	/*Assuming 1 mile is about 5280 feet we can 
+	* estimate the distance a user walked based on the speed and time (already in hours) they've run.
+	* Time must be in hours since speed is in miles per hour
+	* Multiplying mph x hours will give us miles (distance).
+	* We can then convert to feet and divide the total distance by the average strideLength to get total steps taken.*/
 	double distance;
-	distance = (double) speed * time;
-	return (distance * 2112);
+	distance = (double) speed * time * 5280; //Multiply by 5280 to put into feet
+	return (distance / strideLength);
 }
 
 void displayStepCount(int totalStepCount){
@@ -324,7 +328,7 @@ int main(void) {
 			weight = (hundreds * 100) + (tens * 10) + (ones);
 		}
 		displayCal = 1;
-		//While switch 2 is on is on we will display the calories burned
+		//While switch 2 is on is we will display the calories burned
 		while(*SW_ptr == 0b100){
 			//Calculating the current MET
 			if(currentSpeed == walkingSpeed){
@@ -345,9 +349,9 @@ int main(void) {
 		}
 		
 		displaySteps = 1;
-		//While switch 3 is on is on we will display the steps taken
+		//While switch 3 is on we will display the steps taken
 		while(*SW_ptr == 0b1000){
-			//calculate the current time in minutes
+			//calculate the current time in hours
 			double currentTime = calculateCurrentTimeInHOUR(h2, h1, m2, m1, s2, s1);
 			double totalStepCount = calculateStepCount(currentSpeed, currentTime);
 			//Displaying the step count
