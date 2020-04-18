@@ -199,32 +199,33 @@ void displayStepCount(int totalStepCount){
 int main(void) {
 	config_timer();
 	while(1){
+		//If switch 4 is on then they are jogging, else if it is off they are walking
+		if(*SW_ptr & 0b10000){
+			currentSpeed = joggingSpeed;
+		}
+		else if(!(*SW_ptr & 0b10000)){
+			currentSpeed = walkingSpeed;
+		}
+		
+		//If switch 5 is active then they are walking or running at a 10% incline
+		//ElseIf switch 6 is active then they are walking or running at a 20% incline
+		//ElseIf switch 7 is active then they are walking or running at a 30% incline
+		//Else, if neither switch 5, 6, or 7 are active then they are walking or running at a 0% incline (no incline)
+		if(*SW_ptr & 0x20){
+			incline = 1;
+		}
+		else if(*SW_ptr & 0x40){
+			incline = 2;
+		}
+		else if(*SW_ptr & 0x80){
+			incline = 3;
+		}
+		else{
+			incline = 0;
+		}
+		
 		//While switch 0 is on, the sevent segeent display will show a timer
 		while(*SW_ptr & 0b1){
-			//If switch 4 is on then they are jogging, else if it is off they are walking
-			if(*SW_ptr & 0b10000){
-				currentSpeed = joggingSpeed;
-			}
-			else if(!(*SW_ptr & 0b10000)){
-				currentSpeed = walkingSpeed;
-			}
-			//If switch 5 is active then they are walking or running at a 10% incline
-			//ElseIf switch 6 is active then they are walking or running at a 20% incline
-			//ElseIf switch 7 is active then they are walking or running at a 30% incline
-			//Else, if neither switch 5, 6, or 7 are active then they are walking or running at a 0% incline (no incline)
-			if(*SW_ptr & 0x20){
-				incline = 1;
-			}
-			else if(*SW_ptr & 0x40){
-				incline = 2;
-			}
-			else if(*SW_ptr & 0x80){
-				incline = 3;
-			}
-			else{
-				incline = 0;
-			}
-			
 			//If button 0 is pressed then start the timer
 			if (*buttons == 0b0001){
 				jogging = 1;
