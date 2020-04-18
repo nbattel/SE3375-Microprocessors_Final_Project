@@ -201,17 +201,17 @@ int main(void) {
 	while(1){
 		//While switch 0 is on, the sevent segeent display will show a timer
 		while(*SW_ptr & 0b1){
-			//If switch 1 is on then they are jogging, else they are walking
+			//If switch 4 is on then they are jogging, else if it is off they are walking
 			if(*SW_ptr & 0b10000){
 				currentSpeed = joggingSpeed;
 			}
 			else if(!(*SW_ptr & 0b10000)){
 				currentSpeed = walkingSpeed;
 			}
-			//If switch 2 is active then they are walking or running at a 10% incline
-			//ElseIf switch 3 is active then they are walking or running at a 20% incline
-			//ElseIf switch 4 is active then they are walking or running at a 30% incline
-			//Else, if neither switch 2, 3, or 4 are active then they are walking or running at a 0% incline (no incline)
+			//If switch 5 is active then they are walking or running at a 10% incline
+			//ElseIf switch 6 is active then they are walking or running at a 20% incline
+			//ElseIf switch 7 is active then they are walking or running at a 30% incline
+			//Else, if neither switch 5, 6, or 7 are active then they are walking or running at a 0% incline (no incline)
 			if(*SW_ptr & 0x20){
 				incline = 1;
 			}
